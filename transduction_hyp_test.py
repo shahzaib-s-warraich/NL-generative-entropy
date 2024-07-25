@@ -5,15 +5,13 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 from datasets import load_dataset
 
 
-hf_token = "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"
 model_name = "mistralai/Mistral-7B-Instruct-v0.3"
-
-# Function to compute probability distribution
+# Probability distribution estimation using simple softmax
 def get_prob_dist(logits):
     return F.softmax(logits, dim=-1).mean(dim=1)
 
-tokenizer = AutoTokenizer.from_pretrained(model_name, use_auth_token=hf_token)
-model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto", load_in_8bit=True, use_auth_token=hf_token)
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name, device_map="auto", load_in_8bit=True)
 
 if model.config.pad_token_id is None:
     model.config.pad_token_id = model.config.eos_token_id
@@ -34,10 +32,10 @@ with torch.no_grad():
     base_logits = model(base_sample, attention_mask=torch.ones(base_sample.shape, device=base_sample.device)).logits
     base_prob_dist = get_prob_dist(base_logits)
 
-sample_cnt = 0
-kl_div_thres = 0.05
+# sample_cnt = 0
+# kl_div_thres = 0.05
 
-for i in range(100):
+for i in range(100): # n auxiliary samples
     # Generate auxiliary sample
     torch.manual_seed(np.random.randint(0, 10000))
     with torch.no_grad():
@@ -55,10 +53,10 @@ for i in range(100):
     kl_div_ = F.kl_div(base_prob_dist_trimmed.log(), aux_prob_dist_trimmed, reduction='batchmean')
     print(f"KL Divergence: {kl_div_.item()}")
 
-    sample_cnt += 1
-    if kl_div_ < kl_div_thres:
-        break
+#     sample_cnt += 1
+#     if kl_div_ < kl_div_thres:
+#         break
 
-base_generated_text = tokenizer.decode(base_sample[0], skip_special_tokens=True)
-final_aux_generated_text = tokenizer.decode(aux_sample[0], skip_special_tokens=True)
-print(f"Number of samples: {sample_cnt}", f"Base sample: {base_generated_text.split('Translation:')[-1]}", f"Auxiliary sample: {final_aux_generated_text.split('Translation:')[-1]}")
+# base_generated_text = tokenizer.decode(base_sample[0], skip_special_tokens=True)
+# final_aux_generated_text = tokenizer.decode(aux_sample[0], skip_special_tokens=True)
+# print(f"Number of samples: {sample_cnt}", f"Base sample: {base_generated_text.split('Translation:')[-1]}", f"Auxiliary sample: {final_aux_generated_text.split('Translation:')[-1]}")
